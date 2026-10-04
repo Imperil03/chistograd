@@ -1,0 +1,85 @@
+/* The whole plan follows the page; there are no nested scroll areas. */
+.plan-introduction{max-width:1120px;margin:0 0 32px;font-size:var(--intro-size);line-height:1.85;color:var(--muted)}
+.plan-introduction p+p{margin-top:16px}
+.plan-matrix{min-width:0;max-width:100%;overflow:visible;border:1px solid var(--line)}
+.matrix-container{width:100%;min-width:0;max-width:100%;height:auto;max-height:none;overflow:visible}
+.matrix-table{width:100%;min-width:0;table-layout:fixed;border-collapse:separate;border-spacing:0;font-size:17px;line-height:1.7}
+.matrix-work-col{width:24%}.matrix-purpose-col{width:25%}.matrix-month-col{width:8.5%}
+.matrix-table thead th{position:sticky;top:0;z-index:3;padding:18px 8px;border-bottom:1px solid #cfd5e3;border-inline-end:1px solid var(--line);background:#f4f5f8;color:var(--ink);text-align:center;vertical-align:middle;font-size:16px;font-weight:600;line-height:1.6}
+.matrix-table thead th:first-child,.matrix-table thead th:nth-child(2){text-align:left;padding-inline:18px;font-size:18px}
+.matrix-table thead th:first-child{border-top-left-radius:15px}.matrix-table thead th:last-child{border-top-right-radius:15px}
+.matrix-table thead th.is-selected{background:#e8e5fc;color:#48429e;box-shadow:inset 0 -3px 0 var(--accent)}
+.matrix-table thead th small{display:block;margin-top:4px;font-size:15px;font-weight:400}
+.matrix-table thead th:last-child,.matrix-work-row td:last-child{border-inline-end:0}
+.matrix-group-row th{padding:18px 20px;border-bottom:1px solid #d8ddeb;background:#f0f2f8;text-align:left;font-size:20px;font-weight:600;line-height:1.55;overflow-wrap:break-word}
+.matrix-group-row:not(:first-child) th{border-top:1px solid #d8ddeb}
+.matrix-group-row th>span{display:block;max-width:100%}
+.matrix-work-row>th,.matrix-work-row>td{border-bottom:1px solid var(--line);border-inline-end:1px solid var(--line);background:var(--surface)}
+.matrix-work-row>th{padding:0;text-align:left;vertical-align:top;min-width:0}
+.matrix-work-button{display:block;width:100%;min-height:52px;padding:22px 18px;border:0;border-radius:0;background:transparent;color:var(--ink);text-align:left;font-size:18px;font-weight:600;line-height:1.6;overflow-wrap:break-word;transition:color .18s,background .18s}
+.matrix-work-button:hover{color:var(--accent);background:#f6f5ff;text-decoration:underline;text-underline-offset:5px}
+.matrix-work-button:focus-visible{outline-offset:-5px;background:var(--accent-soft);color:var(--accent)}
+.matrix-purpose{padding:22px 18px;color:var(--muted);text-align:left;vertical-align:top;font-size:17px;line-height:1.75;overflow-wrap:break-word}
+.matrix-purpose-mobile{display:none}
+.matrix-phase{padding:20px 8px;color:var(--ink);text-align:center;vertical-align:middle;font-size:16px;line-height:1.65;overflow-wrap:normal;hyphens:manual}
+.matrix-work-row .matrix-phase.is-selected{background:#f3f1ff}
+.matrix-work-row:focus-within>td{background:#faf9ff}.matrix-work-row:focus-within>.matrix-phase.is-selected{background:var(--accent-soft)}
+.matrix-dot{display:inline-block;width:14px;height:14px;border-radius:50%;background:var(--accent);vertical-align:middle}
+.matrix-quantity,.matrix-phase-label{display:block;font-size:16px;font-weight:500;line-height:1.65;hyphens:manual}
+.matrix-quantity{font-weight:600}.matrix-cell-month,.matrix-phase-empty{display:none}
+.matrix-legend{padding:24px;font-size:16px;line-height:1.75;color:var(--muted)}
+.matrix-schedule{display:grid;grid-template-columns:minmax(140px,.65fr) minmax(0,1fr);margin:0;font-size:var(--body-size);line-height:1.8}
+.matrix-schedule dt,.matrix-schedule dd{margin:0;padding:16px 0;border-bottom:1px solid var(--line);overflow-wrap:break-word}
+.matrix-schedule dt{padding-right:24px;color:var(--ink);font-weight:600}.matrix-schedule dd{color:var(--muted)}
+.matrix-schedule dt:last-of-type,.matrix-schedule dd:last-of-type{border-bottom:0}
+
+/* At tablet widths each work keeps all six months, arranged in two rows. */
+@media(max-width:1100px){
+ .matrix-table{display:block;table-layout:auto}
+ .matrix-table colgroup{display:none}
+ .matrix-table thead{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+ .matrix-table tbody{display:block}
+ .matrix-group-row,.matrix-group-row th{display:block;width:100%}
+ .matrix-group-row th{padding:22px 24px;border-inline-end:0;font-size:22px}
+ .matrix-table tbody:first-of-type .matrix-group-row th{border-radius:15px 15px 0 0}
+ .matrix-work-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));padding:0 24px 28px;gap:0;border-bottom:1px solid var(--line);background:white;min-width:0}
+ .matrix-work-row>th{display:block;grid-column:1/-1;border:0;background:transparent}
+ .matrix-work-button{font-size:20px;padding:26px 12px 12px;margin-inline:-12px;width:calc(100% + 24px)}
+ .matrix-purpose{display:none}
+ .matrix-purpose-mobile{display:block;padding:0 0 24px;color:var(--muted);font-size:18px;font-weight:400;line-height:1.8;overflow-wrap:break-word}
+ .matrix-phase{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:10px;min-width:0;min-height:102px;padding:16px 14px;border:1px solid var(--line);border-inline-end:0;text-align:center;font-size:16px}
+ .matrix-phase:nth-of-type(3n+1){border-inline-end:1px solid var(--line)}
+ .matrix-phase:nth-of-type(n+5){border-top:0}
+ .matrix-cell-month{display:block;font-size:15px;line-height:1.5;font-weight:500;color:var(--muted)}
+ .matrix-phase-empty{display:block;color:var(--muted)}
+ .matrix-table tbody:last-of-type .matrix-work-row:last-child{border-bottom:0;border-radius:0 0 15px 15px}
+ .matrix-work-row:focus-within>td{background:white}.matrix-work-row:focus-within>.matrix-phase.is-selected{background:var(--accent-soft)}
+}
+
+@media(max-width:600px){
+ .plan-introduction{margin-bottom:24px;font-size:18px}
+ .matrix-group-row th{padding:20px;font-size:18px}
+ .matrix-work-row{grid-template-columns:repeat(2,minmax(0,1fr));padding:0 20px 24px}
+ .matrix-work-button{padding:24px 12px 12px;font-size:18px}
+ .matrix-purpose-mobile{font-size:16px;line-height:1.85}
+ .matrix-phase{padding:14px 10px;min-height:100px}
+ .matrix-phase:nth-of-type(3n+1){border-inline-end:0}
+ .matrix-phase:nth-of-type(2n+1){border-inline-end:1px solid var(--line)}
+ .matrix-phase:nth-of-type(n+4){border-top:0}
+ .matrix-cell-month{font-size:14px}
+ .matrix-phase-label{font-size:16px}
+ .matrix-legend{padding:20px 0;font-size:15px}
+ .matrix-schedule{grid-template-columns:120px minmax(0,1fr);font-size:16px}.matrix-schedule dt{padding-right:16px}
+}
+@media(max-width:360px){.matrix-group-row th{padding:18px 16px}.matrix-work-row{padding-inline:16px}.matrix-phase{padding-inline:6px}.matrix-schedule{grid-template-columns:105px minmax(0,1fr)}}
+
+@media print{
+ .matrix-table{display:table;table-layout:fixed;font-size:14px}
+ .matrix-table colgroup{display:table-column-group}
+ .matrix-table thead{display:table-header-group;position:static;width:auto;height:auto;margin:0;overflow:visible;clip:auto;white-space:normal}
+ .matrix-table tbody{display:table-row-group}
+ .matrix-group-row,.matrix-work-row{display:table-row;break-inside:avoid}
+ .matrix-group-row th,.matrix-work-row>th,.matrix-work-row>.matrix-phase,.matrix-purpose{display:table-cell;position:static;box-shadow:none}
+ .matrix-table thead th{position:static}.matrix-purpose-mobile,.matrix-cell-month,.matrix-phase-empty{display:none}
+ .matrix-work-button{padding:14px;font-size:14px}.matrix-purpose{padding:14px;font-size:14px}.matrix-phase{padding:14px 6px}
+}
