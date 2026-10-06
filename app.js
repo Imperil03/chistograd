@@ -192,21 +192,22 @@
     if (!report?.published) return pendingHTML('works');
     const works=report.works.filter(work=>work.status !== 'planned');
     if (!works.length) return '<div class="empty-state surface"><div class="empty-symbol">'+icon('work')+'</div><div><h2>Работы за этот месяц ещё не добавлены</h2><p>Подробности появятся после внесения подтверждённых результатов.</p><button type="button" class="button-primary" data-view="plan">Посмотреть план'+icon('arrow')+'</button></div></div>';
-    return `<div class="works-heading"><h2>Работы за ${M.monthLabel(state.month).toLowerCase()}</h2><p>Что изменили, зачем и где посмотреть результат. Незавершённые работы и переносы отмечены отдельно.</p></div><section class="surface"><table class="works-table"><thead><tr><th scope="col">Что сделали</th><th scope="col">Краткое описание</th><th scope="col">Для чего это нужно</th><th scope="col">Подробнее</th></tr></thead><tbody>${works.map(work=>`<tr><td><h3 class="work-name">${esc(work.title)}</h3>${statusHTML(work.status)}</td><td class="work-summary">${esc(work.summary)}${workCountText(work)?`<p>${esc(workCountText(work))}</p>`:''}${work.reason ? `<p>${esc(work.reason)}</p>` : ''}</td><td data-label="Для чего">${esc(work.why)}</td><td><button type="button" class="work-open" data-task="${esc(work.taskId)}" aria-label="Подробнее: ${esc(work.title)}">Подробнее${icon('arrow')}</button></td></tr>`).join('')}</tbody></table></section>`;
+    return `<div class="works-heading"><h2>Работы за ${M.monthLabel(state.month).toLowerCase()}</h2><p>Что изменили, зачем и где посмотреть результат.</p></div><section class="surface"><table class="works-table"><thead><tr><th scope="col">Что сделали</th><th scope="col">Краткое описание</th><th scope="col">Для чего это нужно</th><th scope="col">Подробнее</th></tr></thead><tbody>${works.map(work=>`<tr><td><h3 class="work-name">${esc(work.title)}</h3></td><td class="work-summary">${esc(work.summary)}</td><td data-label="Для чего это нужно">${esc(work.why)}</td><td><button type="button" class="work-open" data-task="${esc(work.taskId)}" aria-label="Подробнее: ${esc(work.title)}">Подробнее${icon('arrow')}</button></td></tr>`).join('')}</tbody></table></section>`;
   }
   function section(title, content, isHTML=false) {
     return `<section class="detail-section"><h3>${esc(title)}</h3>${isHTML ? content : `<p>${esc(content)}</p>`}</section>`;
   }
   function evidenceHTML(item) {
     let body='';
-    if (item.type === 'link') body=`<ul class="detail-links"><li>${linkHTML(item)}</li></ul>`;
+    if (item.type === 'link') return `<ul class="detail-links"><li>${linkHTML(item)}</li></ul>`;
     if (item.type === 'comparison') body=`<div class="comparison-grid"><div><h4>Было</h4><p>${esc(item.before)}</p></div><div><h4>Стало</h4><p>${esc(item.after)}</p></div></div>`;
     if (item.type === 'table') body=`<div class="table-scroll" role="region" aria-label="${esc(item.label)}" tabindex="0"><table class="evidence-table"><thead><tr>${item.columns.map(cell=>`<th scope="col">${esc(cell)}</th>`).join('')}</tr></thead><tbody>${item.rows.map(row=>`<tr>${item.columns.map((_,i)=>`<td>${esc(row[i])}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
     return `<details class="evidence-block"><summary>${esc(item.label)}</summary><div class="evidence-content">${body}</div></details>`;
   }
-  function actualHTML(work) {
+  function actualHTML(work, reportOnly=false) {
     if (!work || work.status === 'planned') return '';
-    let content=`<section class="actual-result"><h3>Фактическое выполнение</h3><p>${statusHTML(work.status)} · ${M.monthLabel(work.reportMonth)}</p>${workCountText(work)?`<p style="margin-top:12px">${esc(workCountText(work))}</p>`:''}${work.result ? `<p style="margin-top:12px">${esc(work.result)}</p>` : ''}${work.reason ? `<p style="margin-top:12px">${esc(work.reason)}</p>` : ''}${work.scheduledMonth ? `<p>Следующий срок: ${M.monthLabel(work.scheduledMonth)}.</p>` : ''}`;
+    const result=(work.result || '').split(/\r?\n\s*\r?\n/).filter(p=>p.trim()).map(p=>`<p>${esc(p)}</p>`).join('');
+    let content=`<section class="actual-result"><h3>${reportOnly ? 'Что сделали' : 'Фактическое выполнение'}</h3>${reportOnly ? '' : `<p>${statusHTML(work.status)} · ${M.monthLabel(work.reportMonth)}</p>${workCountText(work)?`<p>${esc(workCountText(work))}</p>`:''}`}${result}${!reportOnly && work.reason ? `<p>${esc(work.reason)}</p>` : ''}${!reportOnly && work.scheduledMonth ? `<p>Следующий срок: ${M.monthLabel(work.scheduledMonth)}.</p>` : ''}`;
     content+=(work.sections || []).map(s=>section(s.title,`${s.text ? `<p>${esc(s.text)}</p>` : ''}${s.bullets?.length ? `<ul>${s.bullets.map(b=>`<li>${esc(b)}</li>`).join('')}</ul>` : ''}${s.links?.length ? `<ul class="detail-links">${s.links.map(l=>`<li>${linkHTML(l)}</li>`).join('')}</ul>` : ''}`,true)).join('');
     content+=(work.evidence || []).map(evidenceHTML).join('');
     return content+'</section>';
@@ -220,9 +221,13 @@
     if (currentDetail === key && dialog.open) return;
     const {task,stage}=record;
     const work=M.taskProgress(data,record.overview?M.tableTaskId(task.id,state.month):task.id,state.month);
-    $('detail-title').textContent=state.tab === 'works' && work.title ? work.title : task.title;
-    $('detail-meta').textContent=record.overview?`${M.monthLabel(data.project.periodStart)} — ${M.monthLabel(data.project.periodEnd).toLowerCase()}`:`В плане: ${M.monthLabel(stage.month)} · ${M.STATUS[work.status]}`;
-    if (record.matrixRow) {
+    const isWorkReport=state.tab === 'works';
+    $('detail-title').textContent=isWorkReport && work.title ? work.title : task.title;
+    $('detail-meta').hidden=isWorkReport;
+    $('detail-meta').textContent=isWorkReport ? '' : record.overview?`${M.monthLabel(data.project.periodStart)} — ${M.monthLabel(data.project.periodEnd).toLowerCase()}`:`В плане: ${M.monthLabel(stage.month)} · ${M.STATUS[work.status]}`;
+    if (isWorkReport) {
+      $('detail-body').innerHTML=actualHTML(work,true);
+    } else if (record.matrixRow) {
       const row=record.matrixRow;
       $('detail-body').innerHTML=`<p class="detail-lead">${esc(row.purpose)}</p>${section('План работы по месяцам',`<dl class="matrix-schedule">${data.plan.table.months.map(month=>`<dt>${M.monthLabel(month)}</dt><dd>${row.schedule[month]===null?'—':row.schedule[month]==='●'?'Запланировано':typeof row.schedule[month]==='number'?`${number(row.schedule[month])} ${esc(row.unit)}`:esc(row.schedule[month])}</dd>`).join('')}</dl>`,true)}${actualHTML(work)}`;
     } else {
