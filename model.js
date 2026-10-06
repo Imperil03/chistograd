@@ -259,6 +259,7 @@
         check(taskIds.has(work.taskId) && !monthTasks.has(work.taskId),`${context}: неизвестная или повторная taskId ${work.taskId}.`); monthTasks.add(work.taskId);
         check(own(STATUS,work.status),`${context}: неизвестный статус работы.`);
         check(!!work.title && !!work.summary && !!work.why,`${context}: не заполнено описание работы ${work.id}.`);
+        if (work.resultBullets !== undefined) check(Array.isArray(work.resultBullets) && work.resultBullets.every(item => typeof item === 'string' && !!item.trim()),`${context}: resultBullets работы ${work.id} должен быть массивом непустых строк.`);
         if (work.status === 'done') check(!!work.result && !!work.evidence?.length,`${context}: выполненная работа ${work.id} требует результата и подтверждения.`);
         if (work.status === 'moved') check(!!work.reason && validMonth(work.scheduledMonth) && work.scheduledMonth > report.month && work.scheduledMonth <= project.periodEnd,`${context}: перенос требует причины и следующего месяца в пределах плана.`);
         if (work.completedCount !== undefined) check(Number.isInteger(work.completedCount) && work.completedCount >= 0,`${context}: некорректный фактический объём.`);

@@ -207,7 +207,7 @@
   }
   function actualHTML(work, reportOnly=false) {
     if (!work || work.status === 'planned') return '';
-    const result=paragraphsHTML(work.result);
+    const result=paragraphsHTML(work.result)+(work.resultBullets?.length ? `<ul class="result-bullets">${work.resultBullets.map(item=>`<li>${esc(item)}</li>`).join('')}</ul>` : '');
     let content=`<section class="actual-result"><h3>${reportOnly ? 'Что сделали' : 'Фактическое выполнение'}</h3>${reportOnly ? '' : `<p>${statusHTML(work.status)} · ${M.monthLabel(work.reportMonth)}</p>${workCountText(work)?`<p>${esc(workCountText(work))}</p>`:''}`}${result}${!reportOnly && work.reason ? `<p>${esc(work.reason)}</p>` : ''}${!reportOnly && work.scheduledMonth ? `<p>Следующий срок: ${M.monthLabel(work.scheduledMonth)}.</p>` : ''}`;
     content+=(work.sections || []).map(s=>section(s.title,`${paragraphsHTML(s.text)}${s.bullets?.length ? `<ul>${s.bullets.map(b=>`<li>${esc(b)}</li>`).join('')}</ul>` : ''}${s.links?.length ? `<ul class="detail-links">${s.links.map(l=>`<li>${linkHTML(l)}</li>`).join('')}</ul>` : ''}`,true)).join('');
     content+=(work.evidence || []).map(evidenceHTML).join('');
