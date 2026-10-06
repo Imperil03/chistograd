@@ -7,6 +7,7 @@
   }
   const $ = id => document.getElementById(id);
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const paragraphsHTML = value => String(value ?? '').split(/\r?\n\s*\r?\n/).filter(p=>p.trim()).map(p=>`<p>${esc(p)}</p>`).join('');
   const number = value => new Intl.NumberFormat('ru-RU',{maximumFractionDigits:1}).format(value);
   const dateLabel = value => value ? new Intl.DateTimeFormat('ru-RU',{day:'2-digit',month:'2-digit'}).format(new Date(value + 'T12:00:00Z')) : '—';
   const icon = (name, cls='') => `<svg class="${cls}" aria-hidden="true" viewBox="0 0 24 24">${{
@@ -192,7 +193,7 @@
     if (!report?.published) return pendingHTML('works');
     const works=report.works.filter(work=>work.status !== 'planned');
     if (!works.length) return '<div class="empty-state surface"><div class="empty-symbol">'+icon('work')+'</div><div><h2>Работы за этот месяц ещё не добавлены</h2><p>Подробности появятся после внесения подтверждённых результатов.</p><button type="button" class="button-primary" data-view="plan">Посмотреть план'+icon('arrow')+'</button></div></div>';
-    return `<div class="works-heading"><h2>Работы за ${M.monthLabel(state.month).toLowerCase()}</h2><p>Что изменили, зачем и где посмотреть результат.</p></div><section class="surface"><table class="works-table"><thead><tr><th scope="col">Что сделали</th><th scope="col">Краткое описание</th><th scope="col">Для чего это нужно</th><th scope="col">Подробнее</th></tr></thead><tbody>${works.map(work=>`<tr><td><h3 class="work-name">${esc(work.title)}</h3></td><td class="work-summary">${esc(work.summary)}</td><td data-label="Для чего это нужно">${esc(work.why)}</td><td><button type="button" class="work-open" data-task="${esc(work.taskId)}" aria-label="Подробнее: ${esc(work.title)}">Подробнее${icon('arrow')}</button></td></tr>`).join('')}</tbody></table></section>`;
+    return `<div class="works-heading"><h2>Работы за ${M.monthLabel(state.month).toLowerCase()}</h2><p>Что изменили, зачем и где посмотреть результат.</p></div><section class="surface"><table class="works-table"><thead><tr><th scope="col">Что сделали</th><th scope="col">Краткое описание</th><th scope="col">Для чего это нужно</th><th scope="col">Подробнее</th></tr></thead><tbody>${works.map(work=>`<tr><td><h3 class="work-name">${esc(work.title)}</h3></td><td class="work-summary">${esc(work.summary)}</td><td data-label="Для чего это нужно">${paragraphsHTML(work.why)}</td><td><button type="button" class="work-open" data-task="${esc(work.taskId)}" aria-label="Подробнее: ${esc(work.title)}">Подробнее${icon('arrow')}</button></td></tr>`).join('')}</tbody></table></section>`;
   }
   function section(title, content, isHTML=false) {
     return `<section class="detail-section"><h3>${esc(title)}</h3>${isHTML ? content : `<p>${esc(content)}</p>`}</section>`;
@@ -206,9 +207,9 @@
   }
   function actualHTML(work, reportOnly=false) {
     if (!work || work.status === 'planned') return '';
-    const result=(work.result || '').split(/\r?\n\s*\r?\n/).filter(p=>p.trim()).map(p=>`<p>${esc(p)}</p>`).join('');
+    const result=paragraphsHTML(work.result);
     let content=`<section class="actual-result"><h3>${reportOnly ? 'Что сделали' : 'Фактическое выполнение'}</h3>${reportOnly ? '' : `<p>${statusHTML(work.status)} · ${M.monthLabel(work.reportMonth)}</p>${workCountText(work)?`<p>${esc(workCountText(work))}</p>`:''}`}${result}${!reportOnly && work.reason ? `<p>${esc(work.reason)}</p>` : ''}${!reportOnly && work.scheduledMonth ? `<p>Следующий срок: ${M.monthLabel(work.scheduledMonth)}.</p>` : ''}`;
-    content+=(work.sections || []).map(s=>section(s.title,`${s.text ? `<p>${esc(s.text)}</p>` : ''}${s.bullets?.length ? `<ul>${s.bullets.map(b=>`<li>${esc(b)}</li>`).join('')}</ul>` : ''}${s.links?.length ? `<ul class="detail-links">${s.links.map(l=>`<li>${linkHTML(l)}</li>`).join('')}</ul>` : ''}`,true)).join('');
+    content+=(work.sections || []).map(s=>section(s.title,`${paragraphsHTML(s.text)}${s.bullets?.length ? `<ul>${s.bullets.map(b=>`<li>${esc(b)}</li>`).join('')}</ul>` : ''}${s.links?.length ? `<ul class="detail-links">${s.links.map(l=>`<li>${linkHTML(l)}</li>`).join('')}</ul>` : ''}`,true)).join('');
     content+=(work.evidence || []).map(evidenceHTML).join('');
     return content+'</section>';
   }
