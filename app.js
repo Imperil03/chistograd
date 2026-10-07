@@ -223,6 +223,7 @@
     const {task,stage}=record;
     const work=M.taskProgress(data,record.overview?M.tableTaskId(task.id,state.month):task.id,state.month);
     const isWorkReport=state.tab === 'works';
+    dialog.dataset.reportView=isWorkReport ? 'works' : 'plan';
     $('detail-title').textContent=isWorkReport && work.title ? work.title : task.title;
     $('detail-meta').hidden=isWorkReport;
     $('detail-meta').textContent=isWorkReport ? '' : record.overview?`${M.monthLabel(data.project.periodStart)} — ${M.monthLabel(data.project.periodEnd).toLowerCase()}`:`В плане: ${M.monthLabel(stage.month)} · ${M.STATUS[work.status]}`;
