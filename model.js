@@ -125,6 +125,22 @@
       return true;
     });
   }
+  function performanceView(performance) {
+    const before=performance?.rankings?.before, after=performance?.rankings?.after;
+    if (!before || !after || before.region!==after.region || before.device!==after.device || before.depth!==after.depth) return null;
+    return rankingsView(performance.rankings);
+  }
+  function filterPerformanceRows(rows, filters={}, cohorts=[]) {
+    const selected=filters.cohort && filters.cohort!=='all' ? cohorts.find(cohort=>cohort.id===filters.cohort) : null;
+    const ids=selected ? new Set(selected.keywordIds) : null;
+    if (filters.cohort && filters.cohort!=='all' && !selected) return [];
+    return filterRows(ids?rows.filter(row=>ids.has(row.id)):rows,filters);
+  }
+  function performanceTopShare(rows,engine,side) {
+    const measured=rows.filter(row=>row[engine]?.[side]!==undefined);
+    const count=measured.filter(row=>typeof row[engine][side]==='number' && row[engine][side]<=10).length;
+    return {count,total:measured.length,percent:measured.length?count/measured.length*100:null};
+  }
   function taskProgress(data, taskId, asOf) {
     let found = null;
     for (const report of [...data.reports].sort((a,b) => a.month.localeCompare(b.month))) {
@@ -253,6 +269,42 @@
         const original = new Map((report.rankings.before.rows || []).map(row => [row.id,row.query]));
         for (const row of report.rankings.after.rows || []) if (original.has(row.id)) check(original.get(row.id) === row.query,`${context}: текст запроса ${row.id} изменился при сохранении id.`);
       }
+      if (report.performance!==undefined && report.performance!==null) {
+        const performance=report.performance, rankings=performance.rankings;
+        check(performance && typeof performance==='object' && !Array.isArray(performance),`${context}: performance должен быть объектом.`);
+        check(!!rankings?.before && !!rankings?.after,`${context}: для результатов нужны исходный и текущий замеры.`);
+        if (performance.intro!==undefined) check(typeof performance.intro==='string',`${context}: вступление результатов должно быть текстом.`);
+        if (performance.positionsExport!==undefined) {
+          const resource=performance.positionsExport;
+          check(resource && typeof resource==='object' && !Array.isArray(resource) && typeof resource.label==='string' && !!resource.label.trim(),`${context}: не заполнена ссылка на выгрузку позиций.`);
+          check(typeof resource?.url==='string' && !!safeHref(resource.url) && /^evidence\/.+\.csv$/i.test(resource.url),`${context}: выгрузка позиций должна быть безопасным CSV-файлом из evidence.`);
+        }
+        const performanceSnapshots=[rankings?.before,rankings?.after,...(Array.isArray(rankings?.history)?rankings.history:[])].filter(Boolean);
+        if (rankings?.history!==undefined) check(Array.isArray(rankings.history),`${context}: история результатов должна быть массивом.`);
+        for (const snapshot of performanceSnapshots) {
+          check(/^\d{4}-\d{2}-\d{2}$/.test(snapshot.date||'') && !!snapshot.region && !!snapshot.device,`${context}: не заданы параметры замера результатов.`);
+          check(Number.isInteger(snapshot.depth) && snapshot.depth>=10,`${context}: некорректная глубина результатов.`);
+          check(Array.isArray(snapshot.rows),`${context}: нет строк результатов.`);
+          const ids=new Set();
+          for (const row of snapshot.rows||[]) {
+            check(typeof row.id==='string' && !!row.id && !ids.has(row.id) && typeof row.query==='string' && !!row.query.trim(),`${context}: пустой или повторный запрос результатов.`);ids.add(row.id);
+            for (const engine of ['yandex','google']) if (own(row,engine)) check(row[engine]===null || Number.isInteger(row[engine]) && row[engine]>=1 && row[engine]<=snapshot.depth,`${context}: неверная позиция результатов ${row.id}/${engine}.`);
+          }
+        }
+        if (rankings?.before && rankings?.after) {
+          const before=rankings.before, after=rankings.after, byId=new Map((before.rows||[]).map(row=>[row.id,row.query]));
+          check(before.date<after.date,`${context}: текущий замер результатов должен быть позже исходного.`);
+          check(['region','device','depth'].every(key=>before[key]===after[key]),`${context}: параметры замеров результатов должны совпадать.`);
+          check((before.rows||[]).length===(after.rows||[]).length && (after.rows||[]).every(row=>byId.get(row.id)===row.query),`${context}: набор запросов результатов изменился.`);
+        }
+        if (performance.cohorts!==undefined) check(Array.isArray(performance.cohorts),`${context}: выборки результатов должны быть массивом.`);
+        const knownIds=new Set((rankings?.after?.rows||[]).map(row=>row.id)),cohortIds=new Set();
+        for (const cohort of Array.isArray(performance.cohorts)?performance.cohorts:[]) {
+          check(typeof cohort.id==='string' && !!cohort.id && cohort.id!=='all' && !cohortIds.has(cohort.id),`${context}: неверная или повторная выборка результатов.`);cohortIds.add(cohort.id);
+          check(typeof cohort.label==='string' && !!cohort.label.trim(),`${context}: нет названия выборки результатов.`);
+          check(Array.isArray(cohort.keywordIds) && new Set(cohort.keywordIds).size===cohort.keywordIds.length && cohort.keywordIds.every(id=>knownIds.has(id)),`${context}: выборка содержит неизвестные или повторные запросы.`);
+        }
+      }
       const workIds = new Set(), monthTasks = new Set();
       for (const work of report.works || []) {
         check(!!work.id && !workIds.has(work.id),`${context}: повторный id работы.`); workIds.add(work.id);
@@ -277,5 +329,5 @@
     return errors;
   }
   return {MONTHS,STATUS,monthLabel,previousMonth,monthRange,safeHref,defaultMonth,getReport,trafficComparison,trafficHistory,
-    rankChange,rankingsView,rankingSites,filterRows,taskProgress,stageStatus,incomingTasks,tableTaskId,planTaskEntries,validateData};
+    rankChange,rankingsView,rankingSites,filterRows,performanceView,filterPerformanceRows,performanceTopShare,taskProgress,stageStatus,incomingTasks,tableTaskId,planTaskEntries,validateData};
 });

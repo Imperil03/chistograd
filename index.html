@@ -25,12 +25,14 @@
     <nav class="report-nav" aria-label="Разделы отчёта">
       <div class="tabs" role="tablist" aria-label="Отчёт по продвижению сайта">
         <button type="button" role="tab" id="tab-plan" aria-controls="panel-plan" aria-selected="true" tabindex="0">План на 6 месяцев</button>
+        <button type="button" role="tab" id="tab-baseline" aria-controls="panel-baseline" aria-selected="false" tabindex="-1">На старте</button>
         <button type="button" role="tab" id="tab-results" aria-controls="panel-results" aria-selected="false" tabindex="-1">Результаты</button>
         <button type="button" role="tab" id="tab-works" aria-controls="panel-works" aria-selected="false" tabindex="-1">Работы <span id="work-count" class="tab-count" hidden></span></button>
       </div>
     </nav>
     <main id="report-content">
       <section id="panel-plan" role="tabpanel" aria-labelledby="tab-plan" tabindex="-1"><p class="loading-message" role="status">Загружаем план продвижения…</p></section>
+      <section id="panel-baseline" role="tabpanel" aria-labelledby="tab-baseline" tabindex="-1" hidden></section>
       <section id="panel-results" role="tabpanel" aria-labelledby="tab-results" tabindex="-1" hidden></section>
       <section id="panel-works" role="tabpanel" aria-labelledby="tab-works" tabindex="-1" hidden></section>
       <noscript><p class="notice">Для переключения месяцев и просмотра отчёта включите JavaScript в браузере.</p></noscript>

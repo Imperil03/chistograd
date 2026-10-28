@@ -17,13 +17,16 @@
     chart:'<path d="M4 3v17h17M9 15v-4m5 4V6m5 9V9"/>', work:'<rect x="5" y="5" width="14" height="16" rx="2"/><path d="M9 5V3h6v2m-6 6h6m-6 5h6"/>',
     up:'<path d="M12 20V4m-6 6 6-6 6 6"/>', down:'<path d="M12 4v16m-6-6 6 6 6-6"/>'
   }[name] || ''}</svg>`;
-  const tabs = ['plan','results','works'];
+  const tabs = ['plan','baseline','results','works'];
+  const baselineReport = data.reports.find(report => report.kind === 'initial' && report.rankings?.after) || data.reports.find(report => report.published && report.rankings?.after);
   const months = data.plan.months.map(stage => stage.month);
   const taskIndex = new Map(M.planTaskEntries(data).map(entry=>[entry.task.id,entry]));
   if (data.plan.table) for (const group of data.plan.table.groups) for (const row of group.rows) {
     taskIndex.set(row.id,{task:{id:row.id,title:row.title,summary:row.purpose,why:row.purpose},matrixRow:row,overview:true});
   }
   const state = {month:M.defaultMonth(data),tab:'plan',detail:null,filters:{search:'',direction:'',trend:'all'},limit:25,engine:'yandex',competitor:''};
+  const performanceState = {filters:{search:'',direction:'',trend:'all',cohort:'all'},limit:25,engine:'yandex'};
+  let performanceView = null, performanceReport = null;
   let view = null, sites = [], lastOpener = null, currentDetail = null, renderedMonth = null;
   const dialog = $('detail-dialog');
   const statusHTML = status => `<span class="status ${status}">${M.STATUS[status]}</span>`;
@@ -50,7 +53,7 @@
   function navigate(changes, {replace=false,focusTab=false} = {}) {
     const changedMonth = changes.month && changes.month !== state.month;
     Object.assign(state,changes);
-    if (changedMonth) {state.filters={search:'',direction:'',trend:'all'};state.limit=25;}
+    if (changedMonth) {state.filters={search:'',direction:'',trend:'all'};state.limit=25;resetPerformanceFilters();}
     try {history[replace ? 'replaceState' : 'pushState'](null,'',routeURL());} catch (_) { /* The report also opens from disk. */ }
     render();
     if (focusTab) $('tab-' + state.tab).focus({preventScroll:true});
@@ -180,14 +183,78 @@
     $('query-count').textContent=`Показано: ${visible.length} из ${filtered.length}`;
     $('show-more').hidden=state.limit >= filtered.length;
   }
-  function resultsHTML(report) {
+  function resetPerformanceFilters() {
+    performanceState.filters={search:'',direction:'',trend:'all',cohort:'all'};
+    performanceState.limit=25;
+  }
+  function performanceKpisHTML() {
+    return `<div class="engine-kpi-grid">${['yandex','google'].map(engine => {
+      const stats=performanceView.stats[engine];
+      const metrics=[10,3].map(top => {
+        const pair=stats['top'+top], trend=pair.before===null || pair.before===pair.after ? 'neutral' : pair.after>pair.before ? 'positive' : 'negative';
+        if (!stats.total) return `<div class="engine-kpi-metric"><h4>Топ-${top}</h4><p class="no-metric">Нет данных</p></div>`;
+        return `<div class="engine-kpi-metric"><h4>Топ-${top}</h4><div class="kpi-values">${pair.before===null ? '' : `<div><span class="kpi-period">Было</span><span class="number before">${number(pair.before)}</span></div>${icon('arrow','kpi-arrow')}`}<div><span class="kpi-period">Стало</span><span class="number ${trend}">${number(pair.after)}</span></div></div><p class="kpi-count">из ${number(stats.total)} запросов · ${number(pair.after/stats.total*100)}%</p></div>`;
+      }).join('');
+      return `<section class="engine-kpi-card surface engine-${engine}" aria-labelledby="performance-kpi-${engine}"><h3 class="searcher-name" id="performance-kpi-${engine}">${engine==='yandex'?'Яндекс':'Google'}</h3><div class="engine-kpi-metrics">${metrics}</div></section>`;
+    }).join('')}</div>`;
+  }
+  function performanceChartsHTML() {
+    const max=Math.max(1,...Object.values(performanceView.stats).flatMap(stats => [stats.top3.before,stats.top3.after,stats.top10.before,stats.top10.after].filter(value => value!==null)));
+    return `<div class="charts-grid">${['yandex','google'].map(engine => {
+      const stats=performanceView.stats[engine];
+      if (!stats.total) return '';
+      const bars=[3,10].map(top => `<div class="rank-bar-group">${['before','after'].map(side => stats['top'+top][side]===null ? '' : `<div class="rank-bar ${side}" style="height:${stats['top'+top][side]/max*104}px"><span>${number(stats['top'+top][side])}</span></div>`).join('')}<strong>Топ-${top}</strong></div>`).join('');
+      return `<section class="ranking-chart surface" aria-label="${engine==='yandex'?'Яндекс':'Google'}: было и стало"><h3>${engine==='yandex'?'Яндекс':'Google'}</h3><div class="rank-bars">${bars}</div><div class="chart-legend">${stats.comparable?'<span><i class="before-key"></i>Было</span>':''}<span><i></i>Стало</span></div></section>`;
+    }).join('')}</div>`;
+  }
+  function performanceRankCell(value,depth) {
+    if (value===undefined) return '<span class="performance-rank rank-missing" aria-label="Измерение отсутствует">Нет замера</span>';
+    if (value===null) return '<span class="performance-rank rank-out" title="Сайт не найден в проверенной выдаче" aria-label="Сайт не найден в проверенной выдаче">—</span>';
+    const band=value<=3?'top3':value<=10?'top10':value<=30?'top30':'other';
+    return `<span class="performance-rank rank-${band}">${number(value)}</span>`;
+  }
+  function performanceTableHTML() {
+    const rows=performanceView.rows, directions=[...new Set(rows.map(row=>row.direction).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ru'));
+    const cohorts=performanceReport.cohorts||[];
+    const positionsExport=performanceReport.positionsExport, exportURL=M.safeHref(positionsExport?.url);
+    const exportLink=exportURL?`<a class="performance-download" href="${esc(exportURL)}" download>${esc(positionsExport.label)}${icon('external')}</a>`:'';
+    const headings=['yandex','google'].map(engine => ['before','after'].map(side => {
+      const date=performanceView[side].date;
+      return `<th id="performance-rank-${engine}-${side}" scope="col" class="engine-${engine} period-${side}"><time datetime="${esc(date)}" title="${esc(date)}">${dateLabel(date)}</time><span class="performance-rank-share"><span aria-hidden="true">1–10</span><span id="performance-share-${engine}-${side}"></span></span></th>`;
+    }).join('')).join('');
+    return `<section class="queries-card surface performance-queries"><div class="section-heading"><h2>Позиции запросов</h2>${exportLink}</div><div class="table-filters"><div class="filter-field search"><label for="performance-search">Найти запрос</label><input id="performance-search" type="search" placeholder="Например, уборка квартиры" value="${esc(performanceState.filters.search)}"></div>${cohorts.length?`<div class="filter-field cohort"><label for="performance-cohort">Выборка запросов</label><div class="select-wrap"><select id="performance-cohort"><option value="all">Все запросы</option>${cohorts.map(cohort=>`<option value="${esc(cohort.id)}" ${performanceState.filters.cohort===cohort.id?'selected':''}>${esc(cohort.label)}</option>`).join('')}</select>${icon('chevron')}</div></div>`:''}<div class="filter-field direction"><label for="performance-direction">Направление</label><div class="select-wrap"><select id="performance-direction"><option value="">Все направления</option>${directions.map(direction=>`<option value="${esc(direction)}" ${performanceState.filters.direction===direction?'selected':''}>${esc(direction)}</option>`).join('')}</select>${icon('chevron')}</div></div><div class="filter-field trend"><label for="performance-trend">Динамика</label><div class="select-wrap"><select id="performance-trend">${[['all','Все изменения'],['up','Рост'],['down','Снижение'],['same','Без изменений']].map(([value,label])=>`<option value="${value}" ${performanceState.filters.trend===value?'selected':''}>${label}</option>`).join('')}</select>${icon('chevron')}</div></div></div><div class="performance-rank-legend" aria-label="Обозначения текущих позиций"><span><i class="rank-top3" aria-hidden="true"></i>Топ-3</span><span><i class="rank-top10" aria-hidden="true"></i>4–10</span><span><i class="rank-top30" aria-hidden="true"></i>11–30</span><span><i class="rank-other" aria-hidden="true"></i>31–50</span></div><div class="mobile-engine" role="group" aria-label="Поисковик в таблице результатов"><button type="button" data-performance-engine="yandex" aria-pressed="${performanceState.engine==='yandex'}">Яндекс</button><button type="button" data-performance-engine="google" aria-pressed="${performanceState.engine==='google'}">Google</button></div><div class="table-scroll performance-table-scroll" id="performance-positions" data-engine="${performanceState.engine}" role="region" tabindex="0" aria-label="Позиции запросов: было и стало"><table class="positions-table performance-positions-table"><caption class="sr-only">Позиции на ${esc(performanceView.before.date)} и ${esc(performanceView.after.date)}</caption><colgroup><col class="query-col">${['yandex','google'].map(engine=>`<col class="rank-col engine-${engine}"><col class="rank-col engine-${engine}">`).join('')}</colgroup><thead><tr><th rowspan="2" scope="col" class="query-heading">Запрос</th><th id="performance-engine-yandex" colspan="2" scope="colgroup" class="engine-yandex engine-title">Яндекс</th><th id="performance-engine-google" colspan="2" scope="colgroup" class="engine-google engine-title">Google</th></tr><tr>${headings}</tr></thead><tbody id="performance-rows"></tbody></table></div><p id="performance-empty" class="query-empty" hidden>Запросы не найдены. Измените поиск или фильтры.</p><div class="table-footer"><span id="performance-count" role="status" aria-live="polite"></span><button type="button" class="button-secondary" id="performance-more">Показать ещё 25</button></div></section>`;
+  }
+  function renderPerformanceRows() {
+    if (!performanceView || !$('performance-rows')) return;
+    const filtered=M.filterPerformanceRows(performanceView.rows,performanceState.filters,performanceReport.cohorts), visible=filtered.slice(0,performanceState.limit);
+    for (const engine of ['yandex','google']) for (const side of ['before','after']) {
+      const share=M.performanceTopShare(filtered,engine,side), element=$(`performance-share-${engine}-${side}`);
+      element.textContent=share.percent===null?'—':`${number(share.percent)}%`;
+      element.setAttribute('aria-label',share.total?`${share.count} из ${share.total} запросов в топ-10`:'Нет замеров для расчёта');
+    }
+    $('performance-rows').innerHTML=visible.map((row,index)=>`<tr><th id="performance-query-${index}" scope="row" class="query-name">${esc(row.query)}</th>${['yandex','google'].map(engine=>['before','after'].map(side=>{
+      const change=row[engine].change, movement=side==='after'&&['up','down','appeared','lost'].includes(change.kind)?`<span class="performance-movement">${deltaHTML(change)}</span>`:'';
+      return `<td headers="performance-query-${index} performance-engine-${engine} performance-rank-${engine}-${side}" class="engine-${engine} period-${side}">${performanceRankCell(row[engine][side],performanceView[side].depth)}${movement}</td>`;
+    }).join('')).join('')}</tr>`).join('');
+    $('performance-positions').hidden=filtered.length===0;$('performance-empty').hidden=filtered.length!==0;
+    $('performance-count').textContent=`Показано: ${visible.length} из ${filtered.length}`;
+    $('performance-more').hidden=performanceState.limit>=filtered.length;
+  }
+  function monthlyResultsHTML(report) {
+    performanceReport=report?.published ? report.performance||null : null;
+    performanceView=M.performanceView(performanceReport);
+    if (!performanceView) return pendingHTML('results');
+    const intro=performanceReport.intro?paragraphsHTML(performanceReport.intro):'';
+    return `<div class="monthly-performance"><div class="results-heading"><h2>Результаты за ${M.monthLabel(state.month).toLowerCase()}</h2>${intro}</div>${performanceKpisHTML()}${performanceChartsHTML()}${trafficHTML()}${performanceTableHTML()}</div>`;
+  }
+  function baselineHTML(report) {
     if (!report?.published) {view=null;sites=[];return pendingHTML('results');}
     view=M.rankingsView(report.rankings);
     sites=M.rankingSites(report.rankings,data.project);
     if (!sites.some(site=>!site.isProject&&site.id===state.competitor)) state.competitor=sites.find(site=>!site.isProject)?.id||'';
     const intro=report.kind!=='initial'&&report.intro?.length ? report.intro.map(p=>`<p>${esc(p)}</p>`).join('') : '';
     const mismatch=view?.before&&!view.metaMatch?'<p class="metrics-note">Настройки замеров различаются. Изменения позиций не сравниваем.</p>':'';
-    return `<div class="results-heading"><h2>${report.kind==='initial'?'Начальные показатели':'Результаты за '+M.monthLabel(state.month).toLowerCase()}</h2>${intro}</div>${engineKpisHTML()}${mismatch}${view?.before?rankCharts():''}${competitorsHTML()}${trafficHTML()}${queryTableHTML()}`;
+    return `<div class="results-heading"><h2>Стартовая аналитика</h2>${intro}</div>${engineKpisHTML()}${mismatch}${view?.before?rankCharts():''}${competitorsHTML()}${queryTableHTML()}`;
   }
   function worksHTML(report) {
     if (!report?.published) return pendingHTML('works');
@@ -246,7 +313,8 @@
     const report=M.getReport(data,state.month);
     $('report-month').value=state.month;
     if (renderedMonth !== state.month) {
-      $('panel-results').innerHTML=resultsHTML(report);
+      $('panel-baseline').innerHTML=baselineHTML(baselineReport);
+      $('panel-results').innerHTML=monthlyResultsHTML(report);
       $('panel-works').innerHTML=worksHTML(report);
       $('panel-plan').innerHTML=planHTML();
       renderedMonth=state.month;
@@ -259,7 +327,7 @@
     const count=report?.published ? report.works.filter(w=>w.status !== 'planned').length : 0;
     $('work-count').hidden=!count;$('work-count').textContent=count;
     document.title=`Отчёт по продвижению сайта «${data.project.name}» — ${M.monthLabel(state.month)}`;
-    renderQueries();renderDetail();
+    renderQueries();renderPerformanceRows();renderDetail();
   }
   $('report-client').textContent=`«${data.project.name}»`;
   $('site-link').href=M.safeHref(data.project.website);
@@ -281,12 +349,17 @@
     if(taskButton){lastOpener=taskButton;navigate({detail:taskButton.dataset.task});return;}
     const tabButton=event.target.closest('[data-view]');
     if(tabButton){navigate({tab:tabButton.dataset.view,detail:null},{focusTab:true});return;}
+    const performanceEngine=event.target.closest('button[data-performance-engine]');
+    if(performanceEngine){performanceState.engine=performanceEngine.dataset.performanceEngine;$('performance-positions').dataset.engine=performanceState.engine;document.querySelectorAll('button[data-performance-engine]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.performanceEngine===performanceState.engine)));return;}
+    if(event.target.closest('#performance-more')){performanceState.limit+=25;renderPerformanceRows();return;}
     const engineButton=event.target.closest('button[data-engine]');
     if(engineButton){state.engine=engineButton.dataset.engine;$('positions-wrap').dataset.engine=state.engine;document.querySelectorAll('button[data-engine]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.engine === state.engine)));return;}
     if(event.target.closest('#show-more')){state.limit+=25;renderQueries();}
   });
-  document.addEventListener('input',event=>{if(event.target.id === 'query-search'){state.filters.search=event.target.value;state.limit=25;renderQueries();}});
+  document.addEventListener('input',event=>{if(event.target.id === 'performance-search'){performanceState.filters.search=event.target.value;performanceState.limit=25;renderPerformanceRows();return;}if(event.target.id === 'query-search'){state.filters.search=event.target.value;state.limit=25;renderQueries();}});
   document.addEventListener('change',event=>{
+    const performanceFilter={'performance-direction':'direction','performance-trend':'trend','performance-cohort':'cohort'}[event.target.id];
+    if(performanceFilter){performanceState.filters[performanceFilter]=event.target.value;performanceState.limit=25;renderPerformanceRows();return;}
     if(event.target.id === 'direction-filter') state.filters.direction=event.target.value;
     else if(event.target.id === 'trend-filter') state.filters.trend=event.target.value;
     else if(event.target.id === 'competitor-filter') state.competitor=event.target.value;
@@ -298,7 +371,7 @@
   dialog.addEventListener('click',event=>{if(event.target === dialog){const r=dialog.getBoundingClientRect();if(event.clientX < r.left || event.clientX > r.right || event.clientY < r.top || event.clientY > r.bottom) navigate({detail:null});}});
   function restoreRoute() {
     const next=readRoute();
-    if(next.month!==state.month){state.filters={search:'',direction:'',trend:'all'};state.limit=25;}
+    if(next.month!==state.month){state.filters={search:'',direction:'',trend:'all'};state.limit=25;resetPerformanceFilters();}
     Object.assign(state,next);render();
   }
   window.addEventListener('popstate',restoreRoute);
