@@ -141,6 +141,56 @@
     const count=measured.filter(row=>typeof row[engine][side]==='number' && row[engine][side]<=10).length;
     return {count,total:measured.length,percent:measured.length?count/measured.length*100:null};
   }
+  function validateSearchConsole(value) {
+    const errors=[], add=message=>errors.push('Search Console: '+message), day=86400000;
+    const object=item=>item && typeof item==='object' && !Array.isArray(item);
+    const timestamp=value=>{
+      if (typeof value!=='string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+      const time=Date.parse(value+'T00:00:00Z');
+      return Number.isFinite(time) && new Date(time).toISOString().slice(0,10)===value ? time : null;
+    };
+    const counts=item=>object(item) && ['impressions','clicks'].every(key=>Number.isSafeInteger(item[key]) && item[key]>=0);
+    const length=item=>object(item) && timestamp(item.start)!==null && timestamp(item.end)!==null && timestamp(item.end)>=timestamp(item.start) ? (timestamp(item.end)-timestamp(item.start))/day+1 : null;
+    if (!object(value)) return ['Search Console: данные должны быть объектом.'];
+    if (typeof value.sourceLabel!=='string' || !value.sourceLabel.trim()) add('не указан источник.');
+    for (const side of ['before','after']) {
+      if (length(value[side])===null || length(value[side])>366) add('некорректные границы периода.');
+      if (!counts(value[side])) add('показы и клики должны быть целыми неотрицательными числами.');
+    }
+    if (length(value.before)!==null && length(value.after)!==null && (length(value.before)!==length(value.after) || timestamp(value.before.end)>=timestamp(value.after.start))) add('нужны равные по длительности последовательные периоды.');
+    if (!Array.isArray(value.days) || !value.days.length || value.days.length>366) add('нет дневных значений.');
+    else {
+      value.days.forEach((item,index)=>{
+        if (!object(item) || timestamp(item.date)===null || !counts(item)) add('некорректная дата или значения дня.');
+        if (index && object(item) && object(value.days[index-1]) && timestamp(item.date)!==null && timestamp(value.days[index-1].date)!==null && timestamp(item.date)!==timestamp(value.days[index-1].date)+day) add('дни должны идти без пропусков и повторов.');
+      });
+      if (value.days.every(item=>object(item) && timestamp(item.date)!==null && counts(item)) && length(value.after)!==null && counts(value.after)) {
+        if (value.days.length!==length(value.after) || value.days[0].date!==value.after.start || value.days.at(-1).date!==value.after.end) add('дни должны точно покрывать текущий период.');
+        for (const metric of ['impressions','clicks']) if (value.days.reduce((total,item)=>total+item[metric],0)!==value.after[metric]) add('сумма дней не совпадает с текущим периодом.');
+      }
+    }
+    if (value.export!==undefined) {
+      const resource=value.export;
+      if (!object(resource) || typeof resource.label!=='string' || !resource.label.trim() || typeof resource.url!=='string' || !safeHref(resource.url) || !/^evidence\/.+\.csv$/i.test(resource.url)) add('выгрузка должна быть безопасным CSV из evidence.');
+    }
+    if (value.pages!==undefined) {
+      if (!Array.isArray(value.pages) || value.pages.length>4) add('примеры страниц должны быть массивом до четырёх строк.');
+      else {
+        const urls=new Set();
+        for (const item of value.pages) {
+          const url=object(item) && typeof item.url==='string' ? safeHref(item.url) : null;
+          if (!object(item) || typeof item.label!=='string' || !item.label.trim() || !url || !url.startsWith('https://') || urls.has(url) || !['beforeImpressions','afterImpressions'].every(key=>Number.isSafeInteger(item[key]) && item[key]>=0) || item.afterImpressions<=item.beforeImpressions) add('некорректный или повторный пример роста страницы.');
+          if (url) urls.add(url);
+        }
+      }
+    }
+    return errors;
+  }
+  function searchConsoleView(value) {
+    if (value===undefined || value===null || validateSearchConsole(value).length) return null;
+    return {...value,difference:value.after.impressions-value.before.impressions,
+      percent:value.before.impressions>0?(value.after.impressions-value.before.impressions)/value.before.impressions*100:null};
+  }
   function taskProgress(data, taskId, asOf) {
     let found = null;
     for (const report of [...data.reports].sort((a,b) => a.month.localeCompare(b.month))) {
@@ -279,6 +329,11 @@
           check(resource && typeof resource==='object' && !Array.isArray(resource) && typeof resource.label==='string' && !!resource.label.trim(),`${context}: не заполнена ссылка на выгрузку позиций.`);
           check(typeof resource?.url==='string' && !!safeHref(resource.url) && /^evidence\/.+\.csv$/i.test(resource.url),`${context}: выгрузка позиций должна быть безопасным CSV-файлом из evidence.`);
         }
+        if (performance.searchConsole!==undefined && performance.searchConsole!==null) {
+          for (const message of validateSearchConsole(performance.searchConsole)) check(false,`${context}: ${message}`);
+          const period=performance.searchConsole.after;
+          check(typeof period?.start==='string' && typeof period?.end==='string' && period.start.slice(0,7)===report.month && period.end.slice(0,7)===report.month,`${context}: текущие даты Search Console должны относиться к месяцу отчёта.`);
+        }
         const performanceSnapshots=[rankings?.before,rankings?.after,...(Array.isArray(rankings?.history)?rankings.history:[])].filter(Boolean);
         if (rankings?.history!==undefined) check(Array.isArray(rankings.history),`${context}: история результатов должна быть массивом.`);
         for (const snapshot of performanceSnapshots) {
@@ -329,5 +384,5 @@
     return errors;
   }
   return {MONTHS,STATUS,monthLabel,previousMonth,monthRange,safeHref,defaultMonth,getReport,trafficComparison,trafficHistory,
-    rankChange,rankingsView,rankingSites,filterRows,performanceView,filterPerformanceRows,performanceTopShare,taskProgress,stageStatus,incomingTasks,tableTaskId,planTaskEntries,validateData};
+    rankChange,rankingsView,rankingSites,filterRows,performanceView,filterPerformanceRows,performanceTopShare,validateSearchConsole,searchConsoleView,taskProgress,stageStatus,incomingTasks,tableTaskId,planTaskEntries,validateData};
 });

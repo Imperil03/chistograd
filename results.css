@@ -133,3 +133,56 @@
   .performance-queries .mobile-engine button[aria-pressed=true]{color:var(--accent);background:var(--accent-soft);border-color:#c7c2ee}
 }
 @media print{.performance-positions-table th.query-heading,.performance-positions-table th.query-name{position:static}.performance-positions-table{min-width:0}.performance-table-scroll{overflow:visible}}
+
+/* Source-backed visibility in Google; kept separate from traffic and rank snapshots. */
+.gsc-visibility{padding:32px 36px;margin:0 0 40px;min-width:0}
+.gsc-visibility .section-heading{align-items:baseline;gap:16px;flex-wrap:wrap}
+.gsc-visibility .section-heading h2{font-size:27px;line-height:1.4}
+.gsc-source{color:var(--muted);font-size:13px;line-height:1.6}
+.gsc-comparison{display:flex;align-items:center;gap:24px;margin:28px 0 20px;font-variant-numeric:tabular-nums}
+.gsc-comparison>div{display:flex;flex-direction:column;gap:6px}
+.gsc-period-label{font-size:14px;line-height:1.5;color:var(--muted)}
+.gsc-comparison strong{font-size:42px;font-weight:600;line-height:1.2}
+.gsc-comparison-arrow{width:22px;height:22px;align-self:flex-end;margin-bottom:12px;color:var(--muted)}
+.gsc-change{font-size:22px;font-weight:600;line-height:1.5;margin-left:12px;align-self:flex-end}
+.gsc-chart-readout{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:0 0 12px}
+.gsc-day-detail{min-height:25px;font-size:14px;line-height:1.7;color:var(--muted);margin:0;font-variant-numeric:tabular-nums}
+.gsc-chart-readout select{min-height:44px;min-width:105px;padding:8px 12px;font-size:14px;font-variant-numeric:tabular-nums}
+.gsc-chart{width:100%;min-width:0;margin-bottom:8px}
+.gsc-chart svg{display:block;width:100%;height:auto;overflow:visible;fill:var(--muted);font-family:inherit;font-size:13px}
+.gsc-chart text{stroke:none}
+.gsc-chart svg.gsc-chart-mobile{display:none}
+.gsc-grid-line{stroke:var(--line);stroke-width:1;vector-effect:non-scaling-stroke}
+.gsc-line{fill:none;stroke:var(--accent);stroke-width:3;stroke-linejoin:round;vector-effect:non-scaling-stroke}
+.gsc-point{cursor:pointer;outline:none}
+.gsc-point-target{fill:transparent;stroke:none}
+.gsc-point-dot{fill:#fff;stroke:var(--accent);stroke-width:2;vector-effect:non-scaling-stroke;transition:fill .12s}
+.gsc-point-value{display:none;fill:var(--ink);font-size:13px;font-weight:500;pointer-events:none;font-variant-numeric:tabular-nums}
+.gsc-point.is-active .gsc-point-value{display:block}
+.gsc-point.is-active .gsc-point-dot,.gsc-point:hover .gsc-point-dot{fill:var(--accent)}
+.gsc-point:focus-visible .gsc-point-dot{stroke:var(--ink);stroke-width:3}
+.gsc-x-tick,.gsc-y-tick{font-size:13px;font-variant-numeric:tabular-nums}
+.gsc-page-examples{margin:26px 0 20px;max-width:850px}
+.gsc-page-examples h3{font-size:20px;line-height:1.45;margin-bottom:14px}
+.gsc-pages-table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:15px;line-height:1.6}
+.gsc-pages-table th,.gsc-pages-table td{padding:12px 10px;border-bottom:1px solid var(--line);text-align:right;vertical-align:top;font-variant-numeric:tabular-nums}
+.gsc-pages-table th:first-child{width:56%;text-align:left;padding-left:0;font-weight:500}
+.gsc-pages-table thead th{font-size:14px;font-weight:600;color:var(--muted)}
+.gsc-pages-table td:last-child,.gsc-pages-table thead th:last-child{padding-right:0}
+.gsc-pages-table a{overflow-wrap:anywhere}
+.gsc-month-short{display:none}
+@media(max-width:600px){
+  .gsc-visibility{padding:26px 20px}
+  .gsc-visibility .section-heading h2{font-size:25px}
+  .gsc-comparison{gap:16px;margin-top:24px;flex-wrap:wrap}
+  .gsc-comparison strong{font-size:34px}
+  .gsc-comparison-arrow{width:18px;height:18px;margin-bottom:8px}
+  .gsc-change{font-size:20px;margin-left:0}
+  .gsc-chart svg.gsc-chart-desktop{display:none}.gsc-chart svg.gsc-chart-mobile{display:block}
+  .gsc-point-value,.gsc-x-tick,.gsc-y-tick{font-size:13px}
+  .gsc-chart-readout{gap:10px}.gsc-chart-readout select{font-size:16px;max-width:110px}.gsc-day-detail{font-size:13px}
+  .gsc-pages-table{font-size:14px}.gsc-pages-table th,.gsc-pages-table td{padding:12px 8px}
+  .gsc-pages-table th:first-child{padding-left:0}.gsc-pages-table td:last-child,.gsc-pages-table thead th:last-child{padding-right:0}
+  .gsc-month-long{display:none}.gsc-month-short{display:inline}
+}
+@media(prefers-reduced-motion:reduce){.gsc-point-dot{transition:none}}
