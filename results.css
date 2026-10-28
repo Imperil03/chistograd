@@ -154,6 +154,12 @@
 .gsc-chart svg.gsc-chart-mobile{display:none}
 .gsc-grid-line{stroke:var(--line);stroke-width:1;vector-effect:non-scaling-stroke}
 .gsc-line{fill:none;stroke:var(--accent);stroke-width:3;stroke-linejoin:round;vector-effect:non-scaling-stroke}
+.gsc-line.gsc-line-before{stroke:#7f8796;stroke-width:2.5;stroke-dasharray:7 5}
+.gsc-before-dot{fill:#fff;stroke:#7f8796;stroke-width:1.5;vector-effect:non-scaling-stroke;pointer-events:none}
+.gsc-legend{display:flex;align-items:center;flex-wrap:wrap;gap:12px 24px;margin:4px 0 18px;font-size:14px;line-height:1.6;color:var(--muted)}
+.gsc-legend>span{display:inline-flex;align-items:center;gap:8px}
+.gsc-legend i{display:block;width:26px;height:0;border-top:3px solid var(--accent)}
+.gsc-legend .gsc-legend-before{border-top-color:#7f8796;border-top-style:dashed}
 .gsc-point{cursor:pointer;outline:none}
 .gsc-point-target{fill:transparent;stroke:none}
 .gsc-point-dot{fill:#fff;stroke:var(--accent);stroke-width:2;vector-effect:non-scaling-stroke;transition:fill .12s}

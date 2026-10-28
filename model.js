@@ -158,16 +158,22 @@
       if (!counts(value[side])) add('показы и клики должны быть целыми неотрицательными числами.');
     }
     if (length(value.before)!==null && length(value.after)!==null && (length(value.before)!==length(value.after) || timestamp(value.before.end)>=timestamp(value.after.start))) add('нужны равные по длительности последовательные периоды.');
-    if (!Array.isArray(value.days) || !value.days.length || value.days.length>366) add('нет дневных значений.');
-    else {
-      value.days.forEach((item,index)=>{
+    const validateDays=(items,side)=>{
+      if (!Array.isArray(items) || !items.length || items.length>366) {add('нет дневных значений.');return;}
+      items.forEach((item,index)=>{
         if (!object(item) || timestamp(item.date)===null || !counts(item)) add('некорректная дата или значения дня.');
-        if (index && object(item) && object(value.days[index-1]) && timestamp(item.date)!==null && timestamp(value.days[index-1].date)!==null && timestamp(item.date)!==timestamp(value.days[index-1].date)+day) add('дни должны идти без пропусков и повторов.');
+        if (index && object(item) && object(items[index-1]) && timestamp(item.date)!==null && timestamp(items[index-1].date)!==null && timestamp(item.date)!==timestamp(items[index-1].date)+day) add('дни должны идти без пропусков и повторов.');
       });
-      if (value.days.every(item=>object(item) && timestamp(item.date)!==null && counts(item)) && length(value.after)!==null && counts(value.after)) {
-        if (value.days.length!==length(value.after) || value.days[0].date!==value.after.start || value.days.at(-1).date!==value.after.end) add('дни должны точно покрывать текущий период.');
-        for (const metric of ['impressions','clicks']) if (value.days.reduce((total,item)=>total+item[metric],0)!==value.after[metric]) add('сумма дней не совпадает с текущим периодом.');
+      if (items.every(item=>object(item) && timestamp(item.date)!==null && counts(item)) && length(value[side])!==null && counts(value[side])) {
+        if (items.length!==length(value[side]) || items[0].date!==value[side].start || items.at(-1).date!==value[side].end) add('дни должны точно покрывать период.');
+        for (const metric of ['impressions','clicks']) if (items.reduce((total,item)=>total+item[metric],0)!==value[side][metric]) add('сумма дней не совпадает с периодом.');
       }
+    };
+    validateDays(value.days,'after');
+    if (value.beforeDays!==undefined) {
+      validateDays(value.beforeDays,'before');
+      if (Array.isArray(value.beforeDays) && Array.isArray(value.days) &&
+        (value.beforeDays.length!==value.days.length || value.beforeDays.some((item,index)=>object(item) && object(value.days[index]) && timestamp(item.date)!==null && timestamp(value.days[index].date)!==null && item.date.slice(-2)!==value.days[index].date.slice(-2)))) add('сравнение на графике должно совпадать по дням месяца.');
     }
     if (value.export!==undefined) {
       const resource=value.export;
