@@ -16,7 +16,8 @@
     external:'<path d="M7 17 17 7M7 7h10v10"/>', check:'<path d="m5 12 4 4L19 6"/>',
     cycle:'<path d="M19 8a8 8 0 0 0-13-2L3 9m0-5v5h5M5 16a8 8 0 0 0 13 2l3-3m0 5v-5h-5"/>',
     chart:'<path d="M4 3v17h17M9 15v-4m5 4V6m5 9V9"/>', work:'<rect x="5" y="5" width="14" height="16" rx="2"/><path d="M9 5V3h6v2m-6 6h6m-6 5h6"/>',
-    up:'<path d="M12 20V4m-6 6 6-6 6 6"/>', down:'<path d="M12 4v16m-6-6 6 6 6-6"/>'
+    up:'<path d="M12 20V4m-6 6 6-6 6 6"/>', down:'<path d="M12 4v16m-6-6 6 6 6-6"/>',
+    zoom:'<circle cx="10.5" cy="10.5" r="5.5"/><path d="M14.5 14.5 20 20M8 10.5h5m-2.5-2.5v5"/>'
   }[name] || ''}</svg>`;
   const tabs = ['plan','baseline','results','works'];
   const baselineReport = data.reports.find(report => report.kind === 'initial' && report.rankings?.after) || data.reports.find(report => report.published && report.rankings?.after);
@@ -31,6 +32,10 @@
   let performanceView = null, performanceReport = null;
   let view = null, sites = [], lastOpener = null, currentDetail = null, renderedMonth = null;
   const dialog = $('detail-dialog');
+  const imageViewer = $('image-viewer');
+  const viewerImage = $('viewer-image');
+  const viewerZoom = $('viewer-zoom');
+  const viewerBody = $('viewer-body');
   const statusHTML = status => `<span class="status ${status}">${M.STATUS[status]}</span>`;
   const linkHTML = (item, cls='') => {
     const url = M.safeHref(item.url);
@@ -307,18 +312,61 @@
     const mismatch=view?.before&&!view.metaMatch?'<p class="metrics-note">Настройки замеров различаются. Изменения позиций не сравниваем.</p>':'';
     return `<div class="results-heading"><h2>Стартовая аналитика</h2>${intro}</div>${engineKpisHTML()}${mismatch}${view?.before?rankCharts():''}${competitorsHTML()}${queryTableHTML()}`;
   }
+  function visibleWorks(report) {
+    if (!report?.published) return [];
+    return report.workEntries ?? report.works.filter(work=>work.status !== 'planned');
+  }
   function worksHTML(report) {
     if (!report?.published) return pendingHTML('works');
-    const works=report.works.filter(work=>work.status !== 'planned');
+    const works=visibleWorks(report);
     if (!works.length) return '<div class="empty-state surface"><div class="empty-symbol">'+icon('work')+'</div><div><h2>Работы за этот месяц ещё не добавлены</h2><p>Подробности появятся после внесения подтверждённых результатов.</p><button type="button" class="button-primary" data-view="plan">Посмотреть план'+icon('arrow')+'</button></div></div>';
-    return `<div class="works-heading"><h2>Работы за ${M.monthLabel(state.month).toLowerCase()}</h2><p>Что изменили, зачем и где посмотреть результат.</p></div><section class="surface"><table class="works-table"><thead><tr><th scope="col">Что сделали</th><th scope="col">Краткое описание</th><th scope="col">Для чего это нужно</th><th scope="col">Подробнее</th></tr></thead><tbody>${works.map(work=>`<tr><td><h3 class="work-name">${esc(work.title)}</h3></td><td class="work-summary">${esc(work.summary)}</td><td data-label="Для чего это нужно">${paragraphsHTML(work.why)}</td><td><button type="button" class="work-open" data-task="${esc(work.taskId)}" aria-label="Подробнее: ${esc(work.title)}">Подробнее${icon('arrow')}</button></td></tr>`).join('')}</tbody></table></section>`;
+    const rows=works.map(work=>{
+      const detailId=report.workEntries ? work.id : work.taskId;
+      const details=work.details===false ? '' : `<button type="button" class="work-open" data-task="${esc(detailId)}" aria-label="Подробнее: ${esc(work.title)}">Подробнее${icon('arrow')}</button>`;
+      return `<tr><td><h3 class="work-name">${esc(work.title)}</h3></td><td class="work-summary">${esc(work.summary)}</td><td data-label="Для чего это нужно">${paragraphsHTML(work.why)}</td><td>${details}</td></tr>`;
+    }).join('');
+    return `<div class="works-heading"><h2>Работы за ${M.monthLabel(state.month).toLowerCase()}</h2><p>Что изменили, зачем и где посмотреть результат.</p></div><section class="surface"><table class="works-table"><thead><tr><th scope="col">Что сделали</th><th scope="col">Краткое описание</th><th scope="col">Для чего это нужно</th><th scope="col">Подробнее</th></tr></thead><tbody>${rows}</tbody></table></section>`;
   }
   function section(title, content, isHTML=false) {
     return `<section class="detail-section"><h3>${esc(title)}</h3>${isHTML ? content : `<p>${esc(content)}</p>`}</section>`;
   }
-  function evidenceHTML(item) {
+  function evidenceImage(value) {
+    const url=M.safeHref(value);
+    return url?.startsWith('evidence/') && /\.(?:png|jpe?g|webp)$/i.test(url) ? url : null;
+  }
+  function setOriginalImageSize(showOriginal) {
+    imageViewer.classList.toggle('image-viewer-original',showOriginal);
+    viewerZoom.textContent=showOriginal ? 'По ширине' : '100%';
+    viewerZoom.setAttribute('aria-label',showOriginal ? 'Вписать изображение по ширине' : 'Показать изображение в исходном размере');
+    viewerBody.scrollLeft=0;
+    viewerBody.scrollTop=0;
+  }
+  function updateViewerZoom() {
+    if (!imageViewer.open) return;
+    const canEnlarge=viewerImage.naturalWidth>viewerBody.clientWidth;
+    viewerZoom.hidden=!canEnlarge;
+    if (!canEnlarge && imageViewer.classList.contains('image-viewer-original')) setOriginalImageSize(false);
+  }
+  function resourcesHTML(items, showImages=false) {
+    const pictures=[], links=[];
+    for (const item of items) {
+      const url=showImages ? evidenceImage(item.url) : null;
+      if (url) pictures.push({url,label:item.label});
+      else links.push(item);
+    }
+    const gallery=pictures.length ? `<div class="evidence-gallery${pictures.length>1 ? ' evidence-pair' : ''}">${pictures.map(({url,label})=>`
+      <figure>
+        <figcaption>${esc(label)}</figcaption>
+        <button type="button" class="evidence-photo" data-image-url="${esc(url)}" data-image-label="${esc(label)}" aria-haspopup="dialog" aria-label="Увеличить снимок «${esc(label)}»">
+          <img src="${esc(url)}" alt="" loading="lazy" decoding="async">
+          <span class="evidence-photo-icon">${icon('zoom')}</span>
+        </button>
+      </figure>`).join('')}</div>` : '';
+    return gallery+(links.length ? `<ul class="detail-links">${links.map(item=>`<li>${linkHTML(item)}</li>`).join('')}</ul>` : '');
+  }
+  function evidenceHTML(item, showImages) {
     let body='';
-    if (item.type === 'link') return `<ul class="detail-links"><li>${linkHTML(item)}</li></ul>`;
+    if (item.type === 'link') return resourcesHTML([item],showImages);
     if (item.type === 'comparison') body=`<div class="comparison-grid"><div><h4>Было</h4><p>${esc(item.before)}</p></div><div><h4>Стало</h4><p>${esc(item.after)}</p></div></div>`;
     if (item.type === 'table') body=`<div class="table-scroll" role="region" aria-label="${esc(item.label)}" tabindex="0"><table class="evidence-table"><thead><tr>${item.columns.map(cell=>`<th scope="col">${esc(cell)}</th>`).join('')}</tr></thead><tbody>${item.rows.map(row=>`<tr>${item.columns.map((_,i)=>`<td>${esc(row[i])}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
     return `<details class="evidence-block"><summary>${esc(item.label)}</summary><div class="evidence-content">${body}</div></details>`;
@@ -326,21 +374,33 @@
   function actualHTML(work, reportOnly=false) {
     if (!work || work.status === 'planned') return '';
     const result=paragraphsHTML(work.result)+(work.resultBullets?.length ? `<ul class="result-bullets">${work.resultBullets.map(item=>`<li>${esc(item)}</li>`).join('')}</ul>` : '');
-    let content=`<section class="actual-result"><h3>${reportOnly ? 'Что сделали' : 'Фактическое выполнение'}</h3>${reportOnly ? '' : `<p>${statusHTML(work.status)} · ${M.monthLabel(work.reportMonth)}</p>${workCountText(work)?`<p>${esc(workCountText(work))}</p>`:''}`}${result}${!reportOnly && work.reason ? `<p>${esc(work.reason)}</p>` : ''}${!reportOnly && work.scheduledMonth ? `<p>Следующий срок: ${M.monthLabel(work.scheduledMonth)}.</p>` : ''}`;
-    content+=(work.sections || []).map(s=>section(s.title,`${paragraphsHTML(s.text)}${s.bullets?.length ? `<ul>${s.bullets.map(b=>`<li>${esc(b)}</li>`).join('')}</ul>` : ''}${s.links?.length ? `<ul class="detail-links">${s.links.map(l=>`<li>${linkHTML(l)}</li>`).join('')}</ul>` : ''}`,true)).join('');
-    content+=(work.evidence || []).map(evidenceHTML).join('');
+    const heading=reportOnly ? (work.taskIds ? 'Что изменили' : 'Что сделали') : 'Фактическое выполнение';
+    let content=`<section class="actual-result"><h3>${heading}</h3>${reportOnly ? '' : `<p>${statusHTML(work.status)} · ${M.monthLabel(work.reportMonth)}</p>${workCountText(work)?`<p>${esc(workCountText(work))}</p>`:''}`}${result}${!reportOnly && work.reason ? `<p>${esc(work.reason)}</p>` : ''}${!reportOnly && work.scheduledMonth ? `<p>Следующий срок: ${M.monthLabel(work.scheduledMonth)}.</p>` : ''}`;
+    for (const item of work.sections || []) {
+      const bullets=item.bullets?.length ? `<ul>${item.bullets.map(text=>`<li>${esc(text)}</li>`).join('')}</ul>` : '';
+      const body=paragraphsHTML(item.text)+bullets+resourcesHTML(item.links || [],reportOnly);
+      content+=item.collapsible ? `<details class="evidence-block detail-section"><summary>${esc(item.title)}</summary><div class="evidence-content">${body}</div></details>` : section(item.title,body,true);
+    }
+    content+=(work.evidence || []).map(item=>evidenceHTML(item,reportOnly)).join('');
     return content+'</section>';
   }
   function renderDetail() {
-    const record=taskIndex.get(state.detail), key=record ? `${state.detail}:${state.month}:${state.tab}` : null;
-    if (!record) {
+    const isWorkReport=state.tab === 'works';
+    const report=M.getReport(data,state.month);
+    const entries=isWorkReport && report?.published ? report.workEntries : undefined;
+    const entry=entries?.find(work=>work.id===state.detail)
+      ?? entries?.find(work=>work.taskIds.includes(state.detail));
+    const record=entries ? undefined : taskIndex.get(state.detail);
+    const hasDetail=(entry && entry.details!==false) || record;
+    const key=hasDetail ? `${state.detail}:${state.month}:${state.tab}` : null;
+    if (currentDetail === key && dialog.open && key) return;
+    if (imageViewer.open) imageViewer.close();
+    if (!key) {
       if (dialog.open) {dialog.close();document.body.classList.remove('dialog-open');if(lastOpener?.isConnected) lastOpener.focus({preventScroll:true});else $('tab-'+state.tab).focus({preventScroll:true});}
       currentDetail=null;return;
     }
-    if (currentDetail === key && dialog.open) return;
-    const {task,stage}=record;
-    const work=M.taskProgress(data,record.overview?M.tableTaskId(task.id,state.month):task.id,state.month);
-    const isWorkReport=state.tab === 'works';
+    const {task,stage}=record || {};
+    const work=entry ?? M.taskProgress(data,record.overview?M.tableTaskId(task.id,state.month):task.id,state.month);
     dialog.dataset.reportView=isWorkReport ? 'works' : 'plan';
     $('detail-title').textContent=isWorkReport && work.title ? work.title : task.title;
     $('detail-meta').hidden=isWorkReport;
@@ -375,7 +435,7 @@
       $('tab-'+tab).tabIndex=state.tab === tab ? 0 : -1;
       $('panel-'+tab).hidden=state.tab !== tab;
     }
-    const count=report?.published ? report.works.filter(w=>w.status !== 'planned').length : 0;
+    const count=visibleWorks(report).length;
     $('work-count').hidden=!count;$('work-count').textContent=count;
     document.title=`Отчёт по продвижению сайта «${data.project.name}» — ${M.monthLabel(state.month)}`;
     renderQueries();renderPerformanceRows();renderDetail();
@@ -396,6 +456,22 @@
     });
   });
   document.addEventListener('click',event=>{
+    const imageButton=event.target.closest('button[data-image-url]');
+    if (imageButton && dialog.open) {
+      const url=evidenceImage(imageButton.dataset.imageUrl);
+      if (!url) return;
+      const label=imageButton.dataset.imageLabel;
+      $('viewer-title').textContent=label;
+      viewerImage.alt=label;
+      viewerImage.src=url;
+      const width=imageButton.querySelector('img').naturalWidth;
+      imageViewer.style.setProperty('--viewer-width',width ? `${width+2}px` : '1440px');
+      setOriginalImageSize(false);
+      viewerZoom.hidden=true;
+      imageViewer.showModal();
+      updateViewerZoom();
+      return;
+    }
     if (showGscDay(event)) return;
     const taskButton=event.target.closest('[data-task]');
     if(taskButton){lastOpener=taskButton;navigate({detail:taskButton.dataset.task});return;}
@@ -433,6 +509,16 @@
   $('close-detail').addEventListener('click',()=>navigate({detail:null}));
   dialog.addEventListener('cancel',event=>{event.preventDefault();navigate({detail:null});});
   dialog.addEventListener('click',event=>{if(event.target === dialog){const r=dialog.getBoundingClientRect();if(event.clientX < r.left || event.clientX > r.right || event.clientY < r.top || event.clientY > r.bottom) navigate({detail:null});}});
+  $('close-viewer').addEventListener('click',()=>imageViewer.close());
+  viewerZoom.addEventListener('click',()=>setOriginalImageSize(!imageViewer.classList.contains('image-viewer-original')));
+  viewerImage.addEventListener('load',updateViewerZoom);
+  window.addEventListener('resize',updateViewerZoom);
+  imageViewer.addEventListener('close',()=>{if (!imageViewer.open) viewerImage.removeAttribute('src');});
+  imageViewer.addEventListener('click',event=>{
+    if (event.target !== imageViewer) return;
+    const bounds=imageViewer.getBoundingClientRect();
+    if (event.clientX<bounds.left || event.clientX>bounds.right || event.clientY<bounds.top || event.clientY>bounds.bottom) imageViewer.close();
+  });
   function restoreRoute() {
     const next=readRoute();
     if(next.month!==state.month){state.filters={search:'',direction:'',trend:'all'};state.limit=25;resetPerformanceFilters();}

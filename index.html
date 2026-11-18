@@ -8,12 +8,12 @@
   <title>Отчёт по продвижению сайта «Чистоград»</title>
   <link rel="preload" href="assets/fonts/Montserrat-Regular.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="assets/fonts/Montserrat-SemiBold.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css?v=20261118-works">
   <link rel="stylesheet" href="plan-table.css">
   <link rel="stylesheet" href="results.css">
-  <script src="report-data.js?v=20261117-promotions-r1" defer></script>
+  <script src="report-data.js?v=20261118-works" defer></script>
   <script src="model.js" defer></script>
-  <script src="app.js?v=20261029-google-correction" defer></script>
+  <script src="app.js?v=20261118-works" defer></script>
 </head>
 <body>
   <a class="skip-link" href="#report-content">К содержанию отчёта</a>
@@ -42,6 +42,14 @@
   <dialog id="detail-dialog" class="detail-dialog" aria-labelledby="detail-title">
     <div class="drawer-header"><div><h2 id="detail-title"></h2><p id="detail-meta"></p></div><button type="button" id="close-detail" class="icon-button" aria-label="Закрыть подробности" autofocus><svg aria-hidden="true" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>
     <div id="detail-body" class="drawer-body"></div>
+  </dialog>
+  <dialog id="image-viewer" class="image-viewer" aria-labelledby="viewer-title">
+    <div class="image-viewer-header">
+      <h2 id="viewer-title"></h2>
+      <button type="button" id="viewer-zoom" class="image-viewer-zoom" aria-label="Показать изображение в исходном размере" hidden>100%</button>
+      <button type="button" id="close-viewer" class="icon-button" aria-label="Закрыть изображение" autofocus><svg aria-hidden="true" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg></button>
+    </div>
+    <div id="viewer-body" class="image-viewer-body"><img id="viewer-image" alt=""></div>
   </dialog>
   <p id="announcement" class="sr-only" role="status" aria-live="polite"></p>
 </body>

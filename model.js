@@ -7,6 +7,7 @@
   const MONTHS = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
   const STATUS = {planned:'Запланировано',in_progress:'В работе',done:'Выполнено',moved:'Перенесено'};
   const own = (object, key) => Object.prototype.hasOwnProperty.call(object, key);
+  const object = item => item && typeof item === 'object' && !Array.isArray(item);
   const monthLabel = (month, year = true) => `${MONTHS[Number(month.slice(5)) - 1]}${year ? ' ' + month.slice(0,4) : ''}`;
   const previousMonth = month => {
     const [year, number] = month.split('-').map(Number);
@@ -143,7 +144,6 @@
   }
   function validateSearchConsole(value) {
     const errors=[], add=message=>errors.push('Search Console: '+message), day=86400000;
-    const object=item=>item && typeof item==='object' && !Array.isArray(item);
     const timestamp=value=>{
       if (typeof value!=='string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
       const time=Date.parse(value+'T00:00:00Z');
@@ -383,6 +383,29 @@
           if (evidence.type === 'link') check(!!safeHref(evidence.url),`${context}: небезопасная ссылка подтверждения.`);
           if (evidence.type === 'comparison') check(!!evidence.before && !!evidence.after,`${context}: не заполнено сравнение.`);
           if (evidence.type === 'table') check(Array.isArray(evidence.columns) && evidence.columns.length > 0 && Array.isArray(evidence.rows) && evidence.rows.length > 0,`${context}: пустая таблица подтверждений.`);
+        }
+      }
+      if (report.workEntries !== undefined) {
+        check(Array.isArray(report.workEntries),`${context}: порядок работ должен быть массивом.`);
+        const entryIds=new Set();
+        for (const entry of Array.isArray(report.workEntries) ? report.workEntries : []) {
+          check(object(entry) && typeof entry.id === 'string' && /^[a-z0-9][a-z0-9-]*$/.test(entry.id) && !entryIds.has(entry.id),`${context}: некорректный или повторный id в разделе работ.`);
+          if (!object(entry)) continue;
+          entryIds.add(entry.id);
+          check(Array.isArray(entry.taskIds) && entry.taskIds.length>0 && new Set(entry.taskIds).size===entry.taskIds.length && entry.taskIds.every(id=>monthTasks.has(id)),`${context}: работа ${entry.id} ссылается на неизвестное выполнение плана.`);
+          check(['title','summary','why'].every(key=>typeof entry[key]==='string' && entry[key].trim()),`${context}: не заполнено описание работы ${entry.id}.`);
+          check(entry.details===undefined || typeof entry.details==='boolean',`${context}: неверная настройка подробностей ${entry.id}.`);
+          check(entry.details===false || (typeof entry.result==='string' && entry.result.trim()),`${context}: у работы ${entry.id} нет подробностей.`);
+          const sections=entry.sections ?? [];
+          check(Array.isArray(sections),`${context}: неверные разделы работы ${entry.id}.`);
+          for (const section of Array.isArray(sections) ? sections : []) {
+            check(object(section) && typeof section.title==='string' && section.title.trim(),`${context}: отсутствует заголовок раздела работы ${entry.id}.`);
+            if (!object(section)) continue;
+            check(section.collapsible===undefined || typeof section.collapsible==='boolean',`${context}: неверная настройка раскрытия раздела ${entry.id}.`);
+            check(section.bullets===undefined || (Array.isArray(section.bullets) && section.bullets.every(item=>typeof item==='string' && item.trim())),`${context}: некорректный список работы ${entry.id}.`);
+            const links=section?.links ?? [];
+            check(Array.isArray(links) && links.every(item=>object(item) && typeof item.label==='string' && item.label.trim() && safeHref(item.url)),`${context}: некорректная ссылка работы ${entry.id}.`);
+          }
         }
       }
     }
