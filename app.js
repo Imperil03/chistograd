@@ -325,7 +325,7 @@
       const details=work.details===false ? '' : `<button type="button" class="work-open" data-task="${esc(detailId)}" aria-label="Подробнее: ${esc(work.title)}">Подробнее${icon('arrow')}</button>`;
       return `<tr><td><h3 class="work-name">${esc(work.title)}</h3></td><td class="work-summary">${esc(work.summary)}</td><td data-label="Для чего это нужно">${paragraphsHTML(work.why)}</td><td>${details}</td></tr>`;
     }).join('');
-    return `<div class="works-heading"><h2>Работы за ${M.monthLabel(state.month).toLowerCase()}</h2><p>Что изменили, зачем и где посмотреть результат.</p></div><section class="surface"><table class="works-table"><thead><tr><th scope="col">Что сделали</th><th scope="col">Краткое описание</th><th scope="col">Для чего это нужно</th><th scope="col">Подробнее</th></tr></thead><tbody>${rows}</tbody></table></section>`;
+    return `<div class="works-heading"><h2>Работы за ${M.monthLabel(state.month).toLowerCase()}</h2></div><section class="surface"><table class="works-table"><thead><tr><th scope="col">Что сделали</th><th scope="col">Краткое описание</th><th scope="col">Для чего это нужно</th><th scope="col">Подробнее</th></tr></thead><tbody>${rows}</tbody></table></section>`;
   }
   function section(title, content, isHTML=false) {
     return `<section class="detail-section"><h3>${esc(title)}</h3>${isHTML ? content : `<p>${esc(content)}</p>`}</section>`;
