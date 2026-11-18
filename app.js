@@ -347,14 +347,14 @@
     viewerZoom.hidden=!canEnlarge;
     if (!canEnlarge && imageViewer.classList.contains('image-viewer-original')) setOriginalImageSize(false);
   }
-  function resourcesHTML(items, showImages=false) {
+  function resourcesHTML(items, showImages=false, fullImages=false) {
     const pictures=[], links=[];
     for (const item of items) {
       const url=showImages ? evidenceImage(item.url) : null;
       if (url) pictures.push({url,label:item.label});
       else links.push(item);
     }
-    const gallery=pictures.length ? `<div class="evidence-gallery${pictures.length>1 ? ' evidence-pair' : ''}">${pictures.map(({url,label})=>`
+    const gallery=pictures.length ? `<div class="evidence-gallery${pictures.length>1 ? ' evidence-pair' : ''}${fullImages ? ' evidence-gallery-full' : ''}">${pictures.map(({url,label})=>`
       <figure>
         <figcaption>${esc(label)}</figcaption>
         <button type="button" class="evidence-photo" data-image-url="${esc(url)}" data-image-label="${esc(label)}" aria-haspopup="dialog" aria-label="Увеличить снимок «${esc(label)}»">
@@ -378,7 +378,7 @@
     let content=`<section class="actual-result"><h3>${heading}</h3>${reportOnly ? '' : `<p>${statusHTML(work.status)} · ${M.monthLabel(work.reportMonth)}</p>${workCountText(work)?`<p>${esc(workCountText(work))}</p>`:''}`}${result}${!reportOnly && work.reason ? `<p>${esc(work.reason)}</p>` : ''}${!reportOnly && work.scheduledMonth ? `<p>Следующий срок: ${M.monthLabel(work.scheduledMonth)}.</p>` : ''}`;
     for (const item of work.sections || []) {
       const bullets=item.bullets?.length ? `<ul>${item.bullets.map(text=>`<li>${esc(text)}</li>`).join('')}</ul>` : '';
-      const body=paragraphsHTML(item.text)+bullets+resourcesHTML(item.links || [],reportOnly);
+      const body=paragraphsHTML(item.text)+bullets+resourcesHTML(item.links || [],reportOnly,item.fullImages===true);
       content+=item.collapsible ? `<details class="evidence-block detail-section"><summary>${esc(item.title)}</summary><div class="evidence-content">${body}</div></details>` : section(item.title,body,true);
     }
     content+=(work.evidence || []).map(item=>evidenceHTML(item,reportOnly)).join('');

@@ -86,6 +86,7 @@
   object-fit:cover;
   object-position:top;
 }
+.evidence-gallery-full .evidence-photo img {max-height:none}
 .evidence-photo-icon {
   position:absolute;
   right:10px;

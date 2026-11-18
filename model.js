@@ -403,6 +403,7 @@
             if (!object(section)) continue;
             check(section.collapsible===undefined || typeof section.collapsible==='boolean',`${context}: неверная настройка раскрытия раздела ${entry.id}.`);
             check(section.bullets===undefined || (Array.isArray(section.bullets) && section.bullets.every(item=>typeof item==='string' && item.trim())),`${context}: некорректный список работы ${entry.id}.`);
+            check(section.fullImages===undefined || typeof section.fullImages==='boolean',`${context}: неверная настройка снимков работы ${entry.id}.`);
             const links=section?.links ?? [];
             check(Array.isArray(links) && links.every(item=>object(item) && typeof item.label==='string' && item.label.trim() && safeHref(item.url)),`${context}: некорректная ссылка работы ${entry.id}.`);
           }
